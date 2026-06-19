@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BharatVote — Blockchain E-Voting</title>
+  <style>
+    :root {
+      /* Modern Dark Theme with Indian Tricolor Accents */
+      --bg: #0b1121; --card: #151e32; --border: #23314a;
+      --accent: #FF9933; /* Saffron */
+      --purple: #000080; /* Ashoka Blue */
+      --green: #138808;  /* India Green */
+      --red: #ef4444; --yellow: #f59e0b;
+      --text: #e2e8f0; --muted: #94a3b8; --bright: #ffffff;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+
+    /* Grid background */
+    body::before {
+      content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image: linear-gradient(rgba(255,153,51,.03) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(255,153,51,.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    /* Layout */
+    header {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(11,17,33,.95); backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border); padding: 16px 24px;
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    }
+    .logo { display: flex; align-items: center; gap: 12px; }
+    .logo-icon {
+      width: 40px; height: 40px; border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent), var(--green));
+      display: flex; align-items: center; justify-content: center; font-size: 20px;
+      box-shadow: 0 4px 10px rgba(255,153,51,.2);
+    }
+    .logo-text { font-size: 19px; font-weight: 800; color: var(--bright); letter-spacing: 0.5px; }
+    .logo-sub { font-size: 11px; color: var(--muted); font-family: monospace; letter-spacing: 1.5px; text-transform: uppercase; }
+    nav { display: flex; gap: 6px; flex-wrap: wrap; }
+    nav button {
+      padding: 8px 16px; border-radius: 8px; border: 1px solid transparent;
+      background: transparent; color: var(--muted); cursor: pointer; font-size: 14px; font-weight: 600;
+      transition: all .2s ease;
+    }
+    nav button.active, nav button:hover {
+      border-color: var(--accent); background: rgba(255,153,51,.1); color: var(--accent);
+    }
+
+    main { max-width: 1000px; margin: 0 auto; padding: 32px 20px 60px; position: relative; z-index: 1; }
+
+    /* Phase bar */
+    .phase-bar {
+      background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+      padding: 16px 24px; margin-bottom: 24px;
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .phase-steps { display: flex; align-items: center; gap: 6px; }
+    .phase-step {
+      padding: 6px 16px; border-radius: 24px; font-size: 13px; font-weight: 700;
+      border: 1px solid var(--border); color: var(--muted);
+    }
+    .phase-step.active-reg   { border-color: var(--accent);  background: rgba(255,153,51,.15); color: var(--accent); }
+    .phase-step.active-vote  { border-color: var(--yellow);  background: rgba(245,158,11,.15); color: var(--yellow); }
+    .phase-step.active-ended { border-color: var(--green);   background: rgba(19,136,8,.15); color: var(--green); }
+    .connector { width: 24px; height: 2px; background: var(--border); border-radius: 2px; }
+
+    /* Cards */
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .card-glow { background: var(--card); border: 1px solid var(--accent); border-radius: 16px; padding: 24px; box-shadow: 0 0 30px rgba(255,153,51,.1); }
+    .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+    .gap { margin-bottom: 24px; }
+
+    h1 { font-size: 32px; font-weight: 800; color: var(--bright); margin-bottom: 12px; }
+    h2 { font-size: 20px; font-weight: 700; color: var(--bright); margin-bottom: 16px; }
+    p.sub { font-size: 14px; color: var(--muted); line-height: 1.6; }
+
+    /* Forms */
+    label { display: block; font-size: 12px; color: var(--muted); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+    input {
+      width: 100%; background: #080d17; border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px 16px; color: var(--bright); font-size: 15px;
+      outline: none; transition: border-color .2s; margin-bottom: 16px;
+    }
+    input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(255,153,51,.15); }
+
+    /* Buttons */
+    .btn { padding: 12px 24px; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; transition: transform .2s, filter .2s; }
+    .btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+    .btn-blue   { background: linear-gradient(135deg, var(--accent), #e68022); color: #fff; } /* Mapped to Saffron for main CTAs */
+    .btn-green  { background: linear-gradient(135deg, var(--green), #0f6e06); color: #fff; }
+    .btn-yellow { background: linear-gradient(135deg, var(--yellow), #d97706); color: #fff; }
+    .btn-red    { background: linear-gradient(135deg, var(--red), #b91c1c); color: #fff; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+    .btn-full { width: 100%; }
+
+    /* Badges */
+    .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; letter-spacing: .5px; }
+    .badge-blue   { background: rgba(255,153,51,.15);  border: 1px solid rgba(255,153,51,.3);  color: var(--accent); }
+    .badge-green  { background: rgba(19,136,8,.15);  border: 1px solid rgba(19,136,8,.3);  color: var(--green); }
+    .badge-yellow { background: rgba(245,158,11,.15); border: 1px solid rgba(245,158,11,.3); color: var(--yellow); }
+    .badge-red    { background: rgba(239,68,68,.15);  border: 1px solid rgba(239,68,68,.3);  color: var(--red); }
+
+    /* Flex helpers */
+    .flex   { display: flex; align-items: center; gap: 12px; }
+    .sb     { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+    .center { text-align: center; }
+
+    /* Voter list items */
+    .voter-item {
+      background: #080d17; border-radius: 10px; padding: 12px 16px;
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; border: 1px solid var(--border);
+    }
+    .voter-name { font-weight: 600; color: var(--bright); font-size: 15px; }
+    .voter-id   { font-family: monospace; font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+    /* Candidate cards */
+    .candidate-card {
+      background: var(--card); border: 2px solid var(--border); border-radius: 16px;
+      padding: 24px; cursor: pointer; transition: all .2s cubic-bezier(0.4, 0, 0.2, 1); position: relative; overflow: hidden;
+    }
+    .candidate-card:hover { transform: translateY(-4px); box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
+    .candidate-symbol { font-size: 32px; margin-bottom: 12px; }
+    .candidate-name  { font-size: 19px; font-weight: 800; color: var(--bright); margin-bottom: 6px; }
+    .candidate-party { font-size: 14px; font-weight: 600; margin-bottom: 20px; }
+    .candidate-bg { position: absolute; top: -30px; right: -30px; width: 100px; height: 100px; border-radius: 50%; opacity: 0.1; }
+
+    /* Block explorer */
+    .block-item {
+      background: #080d17; border: 1px solid var(--border); border-radius: 12px;
+      padding: 14px 16px; cursor: pointer; transition: all .2s; margin-bottom: 8px;
+    }
+    .block-item:hover, .block-item.selected {
+      border-color: var(--accent); background: #111a2e; transform: translateX(4px);
+    }
+    .block-idx {
+      width: 32px; height: 32px; border-radius: 8px; font-size: 13px; font-weight: 800;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .mono { font-family: 'Consolas', monospace; font-size: 12px; color: #60a5fa; word-break: break-all; }
+    .detail-row { background: #080d17; border-radius: 10px; padding: 12px 16px; margin-bottom: 8px; border: 1px solid var(--border); }
+    .detail-label { font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
+    .detail-val { font-size: 14px; color: var(--bright); font-weight: 600; }
+
+    /* Results */
+    .result-row { margin-bottom: 24px; }
+    .result-bar-bg { background: #080d17; border-radius: 6px; height: 12px; overflow: hidden; margin-top: 8px; border: 1px solid var(--border); }
+    .result-bar    { height: 100%; border-radius: 6px; transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
+
+    /* Stats */
+    .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; text-align: center; }
+    .stat-val  { font-size: 32px; font-weight: 800; margin: 8px 0; }
+    .stat-lbl  { font-size: 12px; color: var(--muted); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+
+    /* Toast */
+    #toast {
+      position: fixed; bottom: 30px; right: 30px; z-index: 9999;
+      padding: 16px 24px; border-radius: 12px; font-size: 15px; font-weight: 600;
+      max-width: 350px; display: none; animation: slideUp .3s ease; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+    #toast.ok  { background: #064e3b; border: 1px solid #10b981; color: #6ee7b7; }
+    #toast.err { background: #450a0a; border: 1px solid #ef4444; color: #fca5a5; }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
+
+    /* Validity */
+    .validity-ok  { border-color: var(--green) !important; }
+    .validity-bad { border-color: var(--red) !important; }
+
+    /* Chain verify rows */
+    .verify-row { background: #080d17; border-radius: 10px; padding: 12px 16px; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between; border: 1px solid var(--border); }
+    .verify-row.ok  { border-left: 4px solid var(--green); }
+    .verify-row.bad { border-left: 4px solid var(--red); }
+
+    /* Tab panels */
+    .tab-panel { display: none; animation: fadeIn .3s ease; }
+    .tab-panel.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    /* Winner */
+    .winner-card {
+      background: linear-gradient(to right, rgba(19,136,8,0.1), rgba(19,136,8,0.05)); 
+      border: 2px solid var(--green); border-radius: 16px; padding: 40px;
+      text-align: center; margin-bottom: 30px; box-shadow: 0 0 40px rgba(19,136,8,.15);
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🇮🇳</div>
+    <div>
+      <div class="logo-text">BharatVote</div>
+      <div class="logo-sub">SECURE MATDAAN SYSTEM</div>
+    </div>
+  </div>
+  <nav>
+    <button class="active" onclick="showTab('home',this)">🏠 Home</button>
+    <button onclick="showTab('register',this)">📋 Register</button>
+    <button onclick="showTab('vote',this)">🗳️ Vote</button>
+    <button onclick="showTab('explorer',this)">🔗 Explorer</button>
+    <button onclick="showTab('results',this)">📊 Results</button>
+    <button onclick="showTab('security',this)">🛡️ Security</button>
+  </nav>
+</header>
+
+<main>
+  <div class="phase-bar">
+    <div class="phase-steps">
+      <div class="phase-step" id="ps-reg">📋 Registration</div>
+      <div class="connector"></div>
+      <div class="phase-step" id="ps-vote">🗳️ Voting phase</div>
+      <div class="connector"></div>
+      <div class="phase-step" id="ps-ended">✅ Results</div>
+    </div>
+    <div class="flex" id="phase-controls">
+      <button class="btn btn-yellow" id="btn-start" onclick="adminAction('start')">▶ Start Voting</button>
+    </div>
+  </div>
+
+  <div class="tab-panel active" id="tab-home">
+    <div class="card-glow gap center" style="padding:48px 24px">
+      <div style="font-size:64px;margin-bottom:16px">🗳️🇮🇳</div>
+      <h1>Blockchain-Powered Elections</h1>
+      <p class="sub" style="max-width:600px;margin:0 auto 24px; font-size: 16px;">
+        A decentralized, tamper-proof electronic voting system tailored for secure democracy. Every vote is permanently stored as an immutable block, secured by true SHA-256 hashing.
+      </p>
+      <div class="flex" style="justify-content:center;flex-wrap:wrap;gap:10px">
+        <span class="badge badge-blue">SHA-256 Hashing</span>
+        <span class="badge badge-blue">Proof of Work</span>
+        <span class="badge badge-blue">Immutable Ledger</span>
+        <span class="badge badge-green">Voter Anonymity</span>
+        <span class="badge badge-yellow">Python Flask</span>
+      </div>
+    </div>
+
+    <div class="grid-2 gap" style="margin-top:24px">
+      {% for item in [
+        ("🔗","Chain Linking","Each block contains the SHA-256 hash of the previous block, forming an unbreakable chain."),
+        ("🔒","Voter Anonymity","Voter IDs (EPIC) are hashed with SHA-256 before being stored on-chain. Complete privacy guaranteed."),
+        ("🚫","One Voter, One Vote","Each Aadhaar/Voter ID can cast exactly one vote — securely enforced at the blockchain level."),
+        ("⛏️","Proof of Work","Each block is mined until its hash starts with '00', making malicious tampering computationally costly."),
+        ("🛡️","Tamper Detection","Modifying any block breaks the hash chain, making electoral fraud immediately detectable."),
+        ("📖","Transparent Audit","The entire blockchain is public and auditable via the Explorer tab in real-time."),
+      ] %}
+      <div class="card">
+        <div style="font-size:28px;margin-bottom:12px">{{ item[0] }}</div>
+        <div style="font-weight:800;color:var(--bright);margin-bottom:6px; font-size:16px;">{{ item[1] }}</div>
+        <p class="sub">{{ item[2] }}</p>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="card" style="background:#080d17">
+      <div style="font-size:15px;font-weight:700;color:var(--muted);margin-bottom:16px">📐 Sample Matdaan Block Data</div>
+      <pre class="mono" style="line-height:2;font-size:13px">{
+  <span style="color:var(--muted)">"index"</span>:          <span style="color:var(--yellow)">3</span>,
+  <span style="color:var(--muted)">"timestamp"</span>:     <span style="color:var(--bright)">"2026-05-04T10:23:11.421Z"</span>,
+  <span style="color:var(--muted)">"type"</span>:          <span style="color:var(--green)">"vote"</span>,
+  <span style="color:var(--muted)">"anon_voter_id"</span>: <span style="color:#a855f7">"a3f8d1c2e9b74056"</span>,  <span style="color:#476282">← SHA-256 of real EPIC ID</span>
+  <span style="color:var(--muted)">"candidate_id"</span>:  <span style="color:#FF9933">"A"</span>,
+  <span style="color:var(--muted)">"nonce"</span>:         <span style="color:var(--yellow)">247</span>,            <span style="color:#476282">← Proof of Work Integer</span>
+  <span style="color:var(--muted)">"previous_hash"</span>: <span style="color:var(--accent)">"00a4f2e8..."</span>,
+  <span style="color:var(--muted)">"hash"</span>:          <span style="color:var(--accent)">"007b3c19..."</span>   <span style="color:#476282">← starts with "00"</span>
+}</pre>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="tab-register">
+    <div class="grid-2">
+      <div>
+        <div class="card-glow gap">
+          <h2>📋 Voter Registration</h2>
+          <label>Voter Full Name</label>
+          <input id="reg-name" placeholder="e.g. Rahul Kumar" />
+          <label>EPIC Number (Voter ID)</label>
+          <input id="reg-id" placeholder="e.g. MH-2026-001" />
+          <button class="btn btn-blue btn-full" onclick="registerVoter()">＋ Register Citizen</button>
+        </div>
+        <div class="card" style="margin-top:20px">
+          <p class="sub">ℹ️ Registration is governed by the Election Commission. IDs must be unique. Your EPIC ID is securely SHA-256 hashed before recording any vote.</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="sb gap"><h2>👥 Registered Citizens</h2><span class="badge badge-blue" id="voter-count">0</span></div>
+        <div id="voter-list"><div class="center" style="color:var(--muted);padding:40px 0;font-size:14px">No voters registered yet.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="tab-vote">
+    <div id="vote-login" style="max-width:460px;margin:0 auto">
+      <div class="card-glow center" style="padding:48px 32px">
+        <div style="font-size:48px;margin-bottom:16px">🔐</div>
+        <h2 style="font-size: 24px;">Citizen Authentication</h2>
+        <p class="sub" style="margin-bottom:24px">Enter your registered EPIC (Voter ID) to access the secure ballot.</p>
+        <label style="text-align: left;">EPIC Number</label>
+        <input id="login-id" placeholder="Your registered Voter ID" onkeydown="if(event.key==='Enter')authenticate()" />
+        <button class="btn btn-blue btn-full" onclick="authenticate()" style="margin-top: 8px;">🔓 Verify & Enter Booth</button>
+      </div>
+    </div>
+    <div id="vote-ballot" style="display:none">
+      <div class="card gap sb" style="background: rgba(255,153,51,0.05); border-color: var(--accent);">
+        <div class="flex">
+          <div id="voter-avatar" style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--purple));display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:20px">?</div>
+          <div><div id="voter-fullname" style="font-weight:800;color:var(--bright); font-size:16px;"></div><div id="voter-vid" class="mono" style="margin-top: 2px;"></div></div>
+        </div>
+        <div class="flex">
+          <span id="voter-status" class="badge badge-yellow">Pending Vote</span>
+          <button class="btn btn-outline" onclick="logout()">Leave Booth</button>
+        </div>
+      </div>
+      <div id="ballot-area" style="margin-top:24px"></div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="tab-explorer">
+    <div class="grid-2">
+      <div>
+        <div class="sb gap"><h2>⛓️ Public Ledger</h2><span class="badge badge-blue" id="block-count-exp">1 block</span></div>
+        <div id="block-list"></div>
+      </div>
+      <div id="block-detail">
+        <div class="card center" style="padding:60px 24px">
+          <div style="font-size:48px;margin-bottom:16px">🔍</div>
+          <p class="sub" style="font-size:16px;">Select any block from the chain to audit its contents.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="tab-results">
+    <div id="winner-section"></div>
+    <div class="card gap">
+      <div class="sb"><h2>📊 Real-Time Mandate</h2><span class="badge badge-blue" id="total-votes-badge">0 votes</span></div>
+      <div id="results-bars"></div>
+    </div>
+    <div class="grid-3" style="margin-top:20px" id="stats-row"></div>
+  </div>
+
+  <div class="tab-panel" id="tab-security">
+    <div id="validity-card" class="card-glow gap" style="margin-bottom:24px">
+      <div class="flex">
+        <div id="validity-icon" style="font-size:56px">🛡️</div>
+        <div>
+          <div id="validity-title" style="font-size:22px;font-weight:800;color:var(--green);margin-bottom:6px">Blockchain VALID ✓</div>
+          <p id="validity-msg" class="sub" style="font-size:15px;"></p>
+        </div>
+      </div>
+    </div>
+    <div class="grid-2 gap">
+      <div class="card">
+        <h2>🔍 Automated Audit</h2>
+        <div id="verify-list"></div>
+      </div>
+      <div class="card">
+        <h2>🧪 Tamper Demonstration</h2>
+        <p class="sub" style="margin-bottom:24px">
+          Observe the security of SHA-256. If a malicious actor alters Block #1, the hash chain breaks entirely, rendering the rest of the ledger invalid.
+        </p>
+        <button id="btn-tamper" class="btn btn-red btn-full" onclick="tamperChain()">💀 Simulate Cyber Attack on Block #1</button>
+        <button id="btn-restore" class="btn btn-green btn-full" onclick="restoreChain()" style="display:none">🔧 Restore Ledger Integrity</button>
+        <div id="tamper-result" style="margin-top:16px;display:none;background:#2d0a0a;border:1px solid rgba(239,68,68,.4);border-radius:12px;padding:16px">
+          <div style="color:var(--red);font-size:14px;font-weight:700;margin-bottom:6px">Attack Result Detected:</div>
+          <p style="font-size:13px;color:#fca5a5;line-height:1.6">Block #1 payload modified. Cryptographic hash no longer matches. All subsequent blocks in the chain have been marked INVALID. Election results are locked down.</p>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>📚 Security Properties of SHA-256</h2>
+      <div class="grid-3">
+        {% for item in [
+          ("Collision Resistance", "It is computationally infeasible to find two separate inputs that generate the exact same hash output."),
+          ("Pre-image Resistance", "Given a specific hash, it is impossible to reverse-engineer or uncover the original voting data."),
+          ("Avalanche Effect",     "Changing even a single character in a block completely scrambles the entire 256-bit hash output."),
+        ] %}
+        <div style="background:#080d17;border-radius:12px;padding:16px; border: 1px solid var(--border);">
+          <div style="font-weight:800;color:var(--accent);margin-bottom:6px;font-size:14px">{{ item[0] }}</div>
+          <p class="sub" style="font-size:13px">{{ item[1] }}</p>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<div id="toast"></div>
+
+<script>
+  // ── State ───────────────────────────────────────────────────
+  let currentVoter = null;
+  let selectedBlock = null;
+  let status = {};
+
+  const CANDIDATES = {{ candidates | tojson }};
+  // Indian Election Inspired Symbols
+  const SYMBOLS = { A: "🪷", B: "✋", C: "🚲", D: "🐘" };
+
+  // ── Tab Navigation ──────────────────────────────────────────
+  function showTab(id, btn) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + id).classList.add('active');
+    if (btn) btn.classList.add('active');
+    if (id === 'explorer') loadChain();
+    if (id === 'results')  loadResults();
+    if (id === 'security') loadSecurity();
+    if (id === 'register') loadVoters();
+  }
+
+  // ── Toast ────────────────────────────────────────────────────
+  function toast(msg, ok = true) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = ok ? 'ok' : 'err';
+    el.style.display = 'block';
+    setTimeout(() => { el.style.display = 'none'; }, 4000);
+  }
+
+  // ── Status & Phase ───────────────────────────────────────────
+  async function loadStatus() {
+    const r = await fetch('/api/status');
+    status = await r.json();
+    updatePhaseBar(status.phase);
+    document.getElementById('voter-count').textContent = status.registered_voters + ' citizens';
+  }
+
+  function updatePhaseBar(phase) {
+    document.getElementById('ps-reg').className   = 'phase-step' + (phase === 'registration' ? ' active-reg' : '');
+    document.getElementById('ps-vote').className  = 'phase-step' + (phase === 'voting'       ? ' active-vote' : '');
+    document.getElementById('ps-ended').className = 'phase-step' + (phase === 'ended'        ? ' active-ended' : '');
+    const ctrl = document.getElementById('phase-controls');
+    if (phase === 'registration') {
+      ctrl.innerHTML = '<button class="btn btn-yellow" onclick="adminAction(\'start\')">▶ Commence Voting</button>';
+    } else if (phase === 'voting') {
+      ctrl.innerHTML = '<button class="btn btn-red" onclick="adminAction(\'end\')">⏹ Conclude Election</button>';
+    } else {
+      ctrl.innerHTML = '<span class="badge badge-green" style="padding: 8px 16px;">✓ ELECTION CONCLUDED</span>';
+    }
+  }
+
+  async function adminAction(action) {
+    const r = await fetch('/api/admin/' + action, { method: 'POST' });
+    const d = await r.json();
+    toast(d.message, d.success);
+    if (d.success) { updatePhaseBar(d.phase); loadStatus(); }
+  }
+
+  // ── Registration ─────────────────────────────────────────────
+  async function registerVoter() {
+    const name = document.getElementById('reg-name').value.trim();
+    const id   = document.getElementById('reg-id').value.trim();
+    const r    = await fetch('/api/register', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, voter_id: id }),
+    });
+    const d = await r.json();
+    toast(d.message, d.success);
+    if (d.success) {
+      document.getElementById('reg-name').value = '';
+      document.getElementById('reg-id').value = '';
+      renderVoters(d.voters);
+      document.getElementById('voter-count').textContent = d.voters.length + ' citizens';
+    }
+  }
+
+  async function loadVoters() {
+    const r = await fetch('/api/voters');
+    const voters = await r.json();
+    renderVoters(voters);
+    document.getElementById('voter-count').textContent = voters.length + ' citizens';
+  }
+
+  function renderVoters(voters) {
+    const el = document.getElementById('voter-list');
+    if (!voters.length) {
+      el.innerHTML = '<div class="center" style="color:var(--muted);padding:40px 0;font-size:14px">No voters registered yet.</div>';
+      return;
+    }
+    el.innerHTML = voters.map(v => `
+      <div class="voter-item">
+        <div><div class="voter-name">${v.name}</div><div class="voter-id">${v.id}</div></div>
+        <span class="badge badge-green">✓ Enrolled</span>
+      </div>`).join('');
+  }
+
+  // ── Voting ───────────────────────────────────────────────────
+  async function authenticate() {
+    const lid = document.getElementById('login-id').value.trim();
+    const r   = await fetch('/api/authenticate', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ voter_id: lid }),
+    });
+    const d = await r.json();
+    if (!d.success) { toast(d.message, false); return; }
+    currentVoter = { id: lid, name: d.name, anon: d.anon_id };
+    document.getElementById('vote-login').style.display = 'none';
+    document.getElementById('vote-ballot').style.display = 'block';
+    document.getElementById('voter-avatar').textContent = d.name[0];
+    document.getElementById('voter-fullname').textContent = d.name;
+    document.getElementById('voter-vid').textContent = lid;
+    if (d.already_voted) {
+      document.getElementById('voter-status').className = 'badge badge-green';
+      document.getElementById('voter-status').textContent = '✓ Vote Cast';
+      document.getElementById('ballot-area').innerHTML = `
+        <div class="card-glow center" style="padding:60px 24px; border-color: var(--green);">
+          <div style="font-size:64px;margin-bottom:16px">✅</div>
+          <div style="font-size:24px;font-weight:800;color:var(--green);margin-bottom:8px">Matdaan Successful!</div>
+          <p class="sub">Your vote is securely and permanently recorded on the blockchain.</p>
+          <div class="mono" style="margin-top:16px; font-size:14px;">Anonymous Hash: ${d.anon_id}</div>
+        </div>`;
+    } else {
+      renderBallot();
+    }
+    toast('Namaste, ' + d.name + '!');
+  }
+
+  function renderBallot() {
+    document.getElementById('ballot-area').innerHTML = `
+      <div style="margin-bottom:20px; padding: 0 8px;">
+        <h2>🗳️ Electronic Voting Machine (EVM)</h2>
+        <p class="sub">Please select one candidate. Your decision is encrypted and final.</p>
+      </div>
+      <div class="grid-2">
+        ${CANDIDATES.map(c => `
+          <div class="candidate-card" style="border-color:${c.color}55"
+            onmouseover="this.style.borderColor='${c.color}';this.style.boxShadow='0 12px 24px ${c.color}22'"
+            onmouseout="this.style.borderColor='${c.color}55';this.style.boxShadow='none'"
+            onclick="castVote('${c.id}')">
+            <div class="candidate-bg" style="background:${c.color}"></div>
+            <div class="candidate-symbol">${SYMBOLS[c.id]}</div>
+            <div class="candidate-name">${c.name}</div>
+            <div class="candidate-party" style="color:${c.color}">${c.party}</div>
+            <button class="btn btn-full" style="background:linear-gradient(135deg,${c.color},${c.color}cc);color:#fff;border:none;padding:12px;border-radius:10px;cursor:pointer;font-weight:700;font-size:15px; box-shadow: 0 4px 10px ${c.color}44;">
+              Press to Vote
+            </button>
+          </div>`).join('')}
+      </div>`;
+  }
+
+  async function castVote(cid) {
+    if (!currentVoter) return;
+    const r = await fetch('/api/vote', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ voter_id: currentVoter.id, candidate_id: cid }),
+    });
+    const d = await r.json();
+    toast(d.message, d.success);
+    if (d.success) {
+      document.getElementById('voter-status').className = 'badge badge-green';
+      document.getElementById('voter-status').textContent = '✓ Vote Cast';
+      document.getElementById('ballot-area').innerHTML = `
+        <div class="card-glow center" style="padding:60px 24px; border-color: var(--green);">
+          <div style="font-size:64px;margin-bottom:16px">✅</div>
+          <div style="font-size:24px;font-weight:800;color:var(--green);margin-bottom:12px">Vote Secured on Ledger!</div>
+          <p class="sub" style="margin-bottom:16px; font-size:15px;">Block #${d.block.index} safely mined with Proof-of-Work nonce <strong style="color:var(--yellow)">${d.block.nonce}</strong></p>
+          <div class="mono" style="font-size:13px; background:#080d17; padding:12px; border-radius:8px; display:inline-block;">Hash ID: ${d.block.hash}</div>
+        </div>`;
+    }
+  }
+
+  function logout() {
+    currentVoter = null;
+    document.getElementById('vote-login').style.display = 'block';
+    document.getElementById('vote-ballot').style.display = 'none';
+    document.getElementById('login-id').value = '';
+  }
+
+  // ── Explorer ─────────────────────────────────────────────────
+  async function loadChain() {
+    const r = await fetch('/api/chain');
+    const blocks = await r.json();
+    document.getElementById('block-count-exp').textContent = blocks.length + ' block' + (blocks.length !== 1 ? 's' : '');
+    const el = document.getElementById('block-list');
+    el.innerHTML = [...blocks].reverse().map(b => {
+      const isVote = b.data.type === 'vote';
+      const cand = isVote ? CANDIDATES.find(c => c.id === b.data.candidate_id) : null;
+      const color = cand ? cand.color : '#4a6fa5';
+      return `
+        <div class="block-item ${selectedBlock === b.index ? 'selected' : ''}" onclick="showBlock(${b.index})">
+          <div class="sb">
+            <div class="flex">
+              <span class="block-idx" style="background:${color}22;color:${color}">#${b.index}</span>
+              <div>
+                <div style="font-size:14px;font-weight:700;color:var(--bright)">
+                  ${isVote ? '🗳️ Vote → ' + (cand ? cand.name : 'Unknown') : '⚡ Genesis Block'}
+                </div>
+                <div class="mono" style="font-size:11px;color:var(--muted);margin-top:2px;">${b.timestamp.split('T')[1].split('.')[0]}</div>
+              </div>
+            </div>
+            <div class="mono" style="font-size:11px">${b.hash.slice(0,16)}...</div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  async function showBlock(idx) {
+    selectedBlock = idx;
+    const r = await fetch('/api/chain');
+    const blocks = await r.json();
+    const b = blocks[idx];
+    const isVote = b.data.type === 'vote';
+    const cand = isVote ? CANDIDATES.find(c => c.id === b.data.candidate_id) : null;
+    const rows = [
+      ['Block Index', b.index, false],
+      ['Timestamp', b.timestamp, true],
+      ['Payload Type', b.data.type, false],
+      ...(isVote ? [
+        ['Anon Voter ID', b.data.anon_voter_id, true],
+        ['Candidate Choice', cand ? `${cand.name} (${cand.party})` : b.data.candidate_id, false],
+      ] : [
+        ['System Message', b.data.message, false],
+      ]),
+      ['Nonce (Mining Iterations)', b.nonce, false],
+      ['Previous Hash Link', b.previous_hash, true],
+      ['Block SHA-256 Hash', b.hash, true],
+    ];
+    document.getElementById('block-detail').innerHTML = `
+      <div class="card-glow">
+        <h2 style="margin-bottom:20px;">Block #${b.index} Ledger Details</h2>
+        ${rows.map(([lbl, val, mono]) => `
+          <div class="detail-row">
+            <div class="detail-label">${lbl}</div>
+            <div class="${mono ? 'mono' : 'detail-val'}">${val}</div>
+          </div>`).join('')}
+      </div>`;
+    loadChain();
+  }
+
+  // ── Results ──────────────────────────────────────────────────
+  async function loadResults() {
+    const r = await fetch('/api/status');
+    const s = await r.json();
+    const total = s.total_votes;
+    const cands = s.candidates;
+    const winner = [...cands].sort((a,b) => b.votes - a.votes)[0];
+    const maxV = Math.max(...cands.map(c => c.votes), 1);
+
+    document.getElementById('total-votes-badge').textContent = total + ' verified votes';
+
+    document.getElementById('winner-section').innerHTML = (s.phase === 'ended' && total > 0) ? `
+      <div class="winner-card">
+        <div style="font-size:48px;margin-bottom:12px">🏆</div>
+        <div style="font-size:13px;color:var(--green);font-weight:800;letter-spacing:3px;margin-bottom:8px">VICTORIOUS CANDIDATE</div>
+        <div style="font-size:32px;font-weight:800;color:var(--bright);margin-bottom:6px">${winner.name}</div>
+        <div style="color:${winner.color};font-weight:700;font-size:16px;">${winner.party}</div>
+        <div style="color:var(--muted);font-size:15px;margin-top:12px;font-weight:600;">Secured ${winner.votes} votes (${winner.percent}%) of the mandate</div>
+      </div>` : '';
+
+    document.getElementById('results-bars').innerHTML = cands.map(c => `
+      <div class="result-row">
+        <div class="sb" style="margin-bottom:8px">
+          <div class="flex">
+            <span style="color:${c.color};font-weight:800;font-size:24px;">${SYMBOLS[c.id]}</span>
+            <div>
+              <div style="font-weight:800;color:var(--bright);font-size:16px">${c.name}</div>
+              <div style="font-size:13px;color:var(--muted);margin-top:2px;">${c.party}</div>
+            </div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-weight:800;color:${c.color};font-size:22px">${c.votes}</div>
+            <div style="font-size:12px;color:var(--muted);font-weight:600;">${c.percent}%</div>
+          </div>
+        </div>
+        <div class="result-bar-bg">
+          <div class="result-bar" style="width:${(c.votes/maxV)*100}%;background:linear-gradient(90deg,${c.color},${c.color}88);box-shadow: 0 0 10px ${c.color}44;"></div>
+        </div>
+      </div>`).join('');
+
+    document.getElementById('stats-row').innerHTML = [
+      ['⛓️', s.block_count, 'Ledger Blocks', 'var(--accent)'],
+      ['🗳️', total, 'Ballots Cast', 'var(--purple)'],
+      [s.chain_valid ? '✅' : '❌', s.chain_valid ? 'Secure' : 'Compromised', 'Network Status', s.chain_valid ? 'var(--green)' : 'var(--red)'],
+    ].map(([icon, val, lbl, col]) => `
+      <div class="stat-card">
+        <div style="font-size:36px;margin-bottom:4px;">${icon}</div>
+        <div class="stat-val" style="color:${col}">${val}</div>
+        <div class="stat-lbl">${lbl}</div>
+      </div>`).join('');
+  }
+
+  // ── Security ─────────────────────────────────────────────────
+  async function loadSecurity() {
+    const r = await fetch('/api/chain/validate');
+    const d = await r.json();
+    renderValidity(d.valid, d.message);
+    const cr = await fetch('/api/chain');
+    const blocks = await cr.json();
+    document.getElementById('verify-list').innerHTML = blocks.map(b => `
+      <div class="verify-row ok">
+        <div class="mono" style="font-size:12px">Block #${b.index} — ${b.hash.slice(0,20)}...</div>
+        <span class="badge badge-green" style="font-size:11px">✓ VERIFIED</span>
+      </div>`).join('');
+  }
+
+  function renderValidity(valid, msg) {
+    const card = document.getElementById('validity-card');
+    card.className = 'card-glow gap ' + (valid ? 'validity-ok' : 'validity-bad');
+    document.getElementById('validity-icon').textContent = valid ? '🛡️' : '⚠️';
+    document.getElementById('validity-title').style.color = valid ? 'var(--green)' : 'var(--red)';
+    document.getElementById('validity-title').textContent = 'Blockchain Network ' + (valid ? 'SECURE ✓' : 'COMPROMISED ✗');
+    document.getElementById('validity-msg').textContent = msg;
+  }
+
+  async function tamperChain() {
+    const r = await fetch('/api/tamper', { method: 'POST' });
+    const d = await r.json();
+    if (!d.success) { toast(d.message, false); return; }
+    toast('⚠️ Threat Detected: Ledger corrupted!', false);
+    renderValidity(d.chain_valid, d.detail);
+    document.getElementById('btn-tamper').style.display = 'none';
+    document.getElementById('btn-restore').style.display = 'block';
+    document.getElementById('tamper-result').style.display = 'block';
+    const cr = await fetch('/api/chain');
+    const blocks = await cr.json();
+    document.getElementById('verify-list').innerHTML = blocks.map((b, i) => {
+      const ok = i === 0;
+      return `<div class="verify-row ${ok ? 'ok' : 'bad'}">
+        <div class="mono" style="font-size:12px">Block #${b.index} — ${b.hash.slice(0,20)}...</div>
+        <span class="badge ${ok ? 'badge-green' : 'badge-red'}" style="font-size:11px">${ok ? '✓ OK' : '✗ CORRUPT'}</span>
+      </div>`;
+    }).join('');
+  }
+
+  async function restoreChain() {
+    const r = await fetch('/api/restore', { method: 'POST' });
+    const d = await r.json();
+    toast('✅ Ledger Integrity Restored!');
+    renderValidity(d.chain_valid, d.detail);
+    document.getElementById('btn-tamper').style.display = 'block';
+    document.getElementById('btn-restore').style.display = 'none';
+    document.getElementById('tamper-result').style.display = 'none';
+    loadSecurity();
+  }
+
+  // ── Init ─────────────────────────────────────────────────────
+  loadStatus();
+  setInterval(loadStatus, 5000);
+</script>
+</body>
+</html>
