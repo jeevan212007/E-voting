@@ -100,13 +100,13 @@ def authenticate():
         "success": True,
         "name": bc.voters[voter_id],
         "already_voted": already,
-        "anon_id": hashlib.sha256((voter_id + "🔒_secure_salt_2026").encode()).hexdigest()[:16],
+      "anon_id": hashlib.sha256((voter_id + SECRET_SALT).encode()).hexdigest()[:16]
     })
 
 
 @app.route("/api/vote", methods=["POST"])
 def vote():
-    body         = request.get_json()
+    body = request.get_json() or {}
     voter_id     = body.get("voter_id", "").strip()
     candidate_id = body.get("candidate_id", "").strip()
 
